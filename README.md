@@ -118,3 +118,83 @@ CSV는 Excel에서 한글/UTF-8이 깨지지 않도록 UTF-8 BOM으로 저장합
 ```
 
 `identity_center_errors.csv`가 비어 있으면 전체 계정 조회가 성공한 것입니다.
+
+---
+
+# AWS Account별 IAM User 추출
+
+`export_iam_users_from_profiles.py`는 `~/.aws/credentials`에 생성된 계정별 profile을 사용해서 각 AWS account의 IAM User 목록을 추출합니다.
+
+IAM Identity Center와 달리 IAM User는 각 계정 안의 IAM API를 조회해야 하므로, 사전에 각 계정으로 접근 가능한 profile이 필요합니다. 이 스크립트는 기본적으로 아래 marker 이후에 있는 profile 중 이름에 `kakaopay-aws`가 포함된 profile만 사용합니다.
+
+```text
+# === Org Assume Role Profiles (generated 2026-04-01) ===
+```
+
+## 실행 예시
+
+```bash
+python3 export_iam_users_from_profiles.py \
+  --credentials-file ~/.aws/credentials \
+  --profile-prefix kakaopay-aws \
+  --output-dir ./output
+```
+
+느리거나 API throttling이 있으면 worker 수를 낮춥니다.
+
+```bash
+python3 export_iam_users_from_profiles.py \
+  --credentials-file ~/.aws/credentials \
+  --profile-prefix kakaopay-aws \
+  --output-dir ./output \
+  --max-workers 1 \
+  --max-attempts 15
+```
+
+## 출력 파일
+
+- `iam_users.csv`: 계정별 IAM User 요약.
+- `iam_users_access_keys.csv`: IAM User별 access key 목록.
+- `iam_users_errors.csv`: profile별 조회 실패 목록.
+- `iam_users_export.json`: 위 데이터를 모두 포함한 JSON.
+
+`iam_users.csv` 주요 컬럼:
+
+- `profile`: 사용한 AWS CLI profile 이름.
+- `account_id`: STS `GetCallerIdentity`로 확인한 AWS 계정 ID.
+- `account_name`: profile 이름에서 `kakaopay-aws` prefix를 제거해 추정한 이름.
+- `iam_user_name`: IAM User 이름.
+- `console_access_enabled`: IAM User에 Login Profile이 있으면 `true`, 없으면 `false`.
+- `mfa_enabled`: MFA device가 1개 이상이면 `true`.
+- `access_key_count`: access key 총 개수.
+- `active_access_key_count`: `Active` 상태 access key 개수.
+- `password_last_used`: AWS가 제공하는 IAM User password last used 값.
+
+## 필요한 IAM 권한
+
+각 profile이 접근하는 계정에서 최소한 아래 조회 권한이 필요합니다.
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "sts:GetCallerIdentity",
+        "iam:ListUsers",
+        "iam:GetLoginProfile",
+        "iam:ListMFADevices",
+        "iam:ListAccessKeys"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+```
+
+## 해석 팁
+
+`console_access_enabled=true`는 해당 IAM User에 콘솔 로그인용 Login Profile, 즉 비밀번호 프로필이 있다는 뜻입니다.
+
+반대로 `console_access_enabled=false`여도 access key가 있으면 CLI/API 접근은 가능할 수 있습니다. 그래서 계정 보유자 감사에서는 `console_access_enabled`, `mfa_enabled`, `active_access_key_count`를 같이 보는 편이 좋습니다.
