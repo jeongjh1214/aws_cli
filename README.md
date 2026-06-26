@@ -198,3 +198,174 @@ python3 export_iam_users_from_profiles.py \
 `console_access_enabled=true`는 해당 IAM User에 콘솔 로그인용 Login Profile, 즉 비밀번호 프로필이 있다는 뜻입니다.
 
 반대로 `console_access_enabled=false`여도 access key가 있으면 CLI/API 접근은 가능할 수 있습니다. 그래서 계정 보유자 감사에서는 `console_access_enabled`, `mfa_enabled`, `active_access_key_count`를 같이 보는 편이 좋습니다.
+
+---
+
+# 주간 IAM Identity Center 조직정보 감사 배치
+
+`weekly_identity_center_org_audit.py`는 매주 IAM Identity Center 권한 현황을 live로 다시 조회하고, 사용자 DisplayName 기준으로 Krew 조직정보를 붙인 뒤 SQLite에 run별 snapshot을 저장합니다. 직전 정상 run과 비교한 변경분은 CSV/JSON과 SQLite `changes` 테이블에 남습니다.
+
+Terraform으로 Permission Set assignment가 추가/삭제되어도 다음 배치 실행 시 AWS live 데이터를 다시 읽기 때문에 변경이 반영됩니다.
+
+## uv 설치/실행
+
+레포를 받은 뒤 의존성을 uv가 관리하게 합니다.
+
+```bash
+git clone https://github.com/jeongjh1214/aws_cli.git
+cd aws_cli
+uv sync
+```
+
+명령어처럼 실행:
+
+```bash
+export KREW_API_KEY="발급받은 key"
+
+uv run identity-center-org-audit \
+  --profile audit \
+  --region ap-northeast-2 \
+  --db ./identity_center_audit.sqlite3 \
+  --output-dir ./output
+```
+
+전역 tool처럼 설치해서 실행:
+
+```bash
+uv tool install .
+
+export KREW_API_KEY="발급받은 key"
+
+identity-center-org-audit \
+  --profile audit \
+  --region ap-northeast-2 \
+  --db ./identity_center_audit.sqlite3 \
+  --output-dir ./output
+```
+
+기존 exporter들도 console script로 노출됩니다.
+
+```bash
+uv run identity-center-export --help
+uv run iam-users-export --help
+uv run identity-center-org-audit --help
+```
+
+## 기본 동작
+
+```text
+1. IAM Identity Center live 조회
+2. GROUP assignment를 실제 사용자 기준으로 펼침
+3. effective_user_display_name 기준으로 중복 제거
+4. Krew API는 unique DisplayName마다 1회만 호출
+5. Krew 조직정보를 SQLite krew_cache에 저장
+6. 현재 snapshot을 assignments에 저장
+7. 직전 SUCCESS run과 비교
+8. changes 테이블과 weekly_changes.csv 생성
+```
+
+`--expand-groups`는 기본값이 켜져 있습니다. 그룹 멤버 확장을 끄려면 `--no-expand-groups`를 사용합니다.
+
+## Krew API
+
+호출 형식:
+
+```text
+GET https://knock-api.kakaopay.com/papi/v1/krew/{displayName}
+Header: X-API-Key: ...
+```
+
+`displayName`은 IAM Identity Center의 `effective_user_display_name`을 사용합니다. 예: `billy.j`
+
+응답에서 저장하는 값:
+
+```text
+data.mainPosition.orgCode
+data.mainPosition.orgName
+```
+
+같은 사용자가 여러 AWS 계정/Permission Set에 있어도 같은 run 안에서는 Krew API를 한 번만 호출합니다.
+
+## 캐시 정책
+
+기본값:
+
+```text
+--krew-cache-ttl-days 6
+```
+
+최근 6일 이내 조회한 DisplayName은 SQLite `krew_cache` 값을 재사용합니다. 강제로 전부 재조회하려면:
+
+```bash
+uv run identity-center-org-audit \
+  --profile audit \
+  --region ap-northeast-2 \
+  --db ./identity_center_audit.sqlite3 \
+  --refresh-krew-cache
+```
+
+## 출력 파일
+
+기본 prefix는 `weekly`입니다.
+
+- `weekly_current_snapshot.csv`: 이번 run의 전체 사용자 권한 + 조직정보 snapshot.
+- `weekly_changes.csv`: 알람 연동에 사용할 변경분.
+- `weekly_errors.csv`: AWS 계정 조회 또는 Krew API 조회 실패 목록.
+- `weekly_summary.json`: run id, 직전 run id, 변경 건수 요약.
+
+알람 연동은 `weekly_changes.csv` 또는 SQLite `changes` 테이블을 읽으면 됩니다.
+
+## 변경 타입
+
+- `ADDED`: 이번 run에서 새로 생긴 `account_id + permission_set_arn + effective_user_id` 조합.
+- `REMOVED`: 직전 run에는 있었지만 이번 run에서 사라진 조합.
+- `ORG_CHANGED`: 권한 조합은 그대로인데 Krew `orgCode` 또는 `orgName`이 바뀐 사용자.
+
+## SQLite 주요 테이블
+
+`runs`
+
+```text
+run_id, started_at, finished_at, status, source, error_message
+```
+
+`assignments`
+
+```text
+run_id, assignment_key, account_id, account_name, permission_set_arn,
+permission_set_name, effective_user_id, effective_user_display_name,
+effective_user_email, org_code, org_name, krew_status, krew_error
+```
+
+`krew_cache`
+
+```text
+display_name, org_code, org_name, fetched_at, status, error_message
+```
+
+`changes`
+
+```text
+run_id, change_type, assignment_key, account_id, account_name,
+permission_set_name, effective_user_display_name, old_org_code,
+new_org_code, old_org_name, new_org_name
+```
+
+## 주간 배치 예시
+
+cron 예시:
+
+```cron
+0 8 * * 1 cd /path/to/aws_cli && KREW_API_KEY=... uv run identity-center-org-audit --profile audit --region ap-northeast-2 --db ./identity_center_audit.sqlite3 --output-dir ./output >> ./output/weekly.log 2>&1
+```
+
+API throttling이 있으면 worker 수를 낮춥니다.
+
+```bash
+uv run identity-center-org-audit \
+  --profile audit \
+  --region ap-northeast-2 \
+  --db ./identity_center_audit.sqlite3 \
+  --max-workers 2 \
+  --max-attempts 15
+```
