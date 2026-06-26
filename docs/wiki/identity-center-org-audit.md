@@ -219,6 +219,34 @@ AWS throttling이 보이면 worker 수를 낮춘다.
 --max-workers 1
 ```
 
+## 전체 실행 전 smoke test
+
+전체 계정을 다시 조회하기 전에 1개 계정만 별도 DB/output으로 테스트한다. 운영 DB와 섞지 않기 위해 `--db`와 `--output-dir`은 smoke test 전용 값을 사용한다.
+
+```bash
+export KREW_API_KEY="발급받은 key"
+
+uv run identity-center-org-audit \
+  --profile audit \
+  --region ap-northeast-2 \
+  --db ./smoke_identity_center_audit.sqlite3 \
+  --output-dir ./smoke-output \
+  --account-id 123456789012 \
+  --max-workers 1
+```
+
+계정명을 일부만 알고 있으면:
+
+```bash
+uv run identity-center-org-audit \
+  --profile audit \
+  --region ap-northeast-2 \
+  --db ./smoke_identity_center_audit.sqlite3 \
+  --output-dir ./smoke-output \
+  --account-name-contains sec_engineering-dev \
+  --max-workers 1
+```
+
 ## cron 예시
 
 ```cron

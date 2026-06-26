@@ -492,7 +492,14 @@ def collect_identity_center_effective_users(args: argparse.Namespace) -> tuple[l
         region_name=args.organizations_region,
     )
     instance_arn, identity_store_id = discover_instance(sso_admin, args.instance_arn, args.identity_store_id)
-    accounts = list_accounts(organizations, args.include_suspended_accounts)
+    accounts = filter_accounts_for_scan(
+        list_accounts(organizations, args.include_suspended_accounts),
+        account_ids=args.account_id,
+        account_name_contains=args.account_name_contains,
+        max_accounts=args.max_accounts,
+    )
+    if not accounts:
+        raise SystemExit("스캔 대상 계정이 없습니다. --account-id 또는 --account-name-contains 조건을 확인하세요.")
     exporter = AssignmentExporter(
         sso_admin=sso_admin,
         identity_store=identity_store,
@@ -545,6 +552,27 @@ def collect_identity_center_effective_users(args: argparse.Namespace) -> tuple[l
     return effective_rows, errors
 
 
+def filter_accounts_for_scan(
+    accounts: list[dict[str, Any]],
+    *,
+    account_ids: list[str] | None,
+    account_name_contains: str | None,
+    max_accounts: int | None,
+) -> list[dict[str, Any]]:
+    filtered = list(accounts)
+    if account_ids:
+        wanted = set(account_ids)
+        filtered = [account for account in filtered if account.get("Id") in wanted]
+    if account_name_contains:
+        needle = account_name_contains.lower()
+        filtered = [account for account in filtered if needle in account.get("Name", "").lower()]
+    if max_accounts is not None:
+        if max_accounts < 1:
+            raise SystemExit("--max-accounts는 1 이상이어야 합니다.")
+        filtered = filtered[:max_accounts]
+    return filtered
+
+
 def output_paths(output_dir: Path, prefix: str) -> dict[str, Path]:
     return {
         "snapshot_csv": output_dir / f"{prefix}_current_snapshot.csv",
@@ -572,6 +600,20 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--krew-cache-ttl-days", type=int, default=6, help="Krew cache TTL. Default: 6")
     parser.add_argument("--refresh-krew-cache", action="store_true", help="Ignore Krew cache and refetch all users.")
     parser.add_argument("--max-workers", type=int, default=4, help="Concurrent AWS account workers. Default: 4")
+    parser.add_argument(
+        "--account-id",
+        action="append",
+        help="Scan only this AWS account ID. Repeat the option to scan multiple accounts.",
+    )
+    parser.add_argument(
+        "--account-name-contains",
+        help="Scan only accounts whose Organizations account name contains this text.",
+    )
+    parser.add_argument(
+        "--max-accounts",
+        type=int,
+        help="Scan only the first N accounts after filters. Useful for smoke tests.",
+    )
     parser.add_argument("--max-attempts", type=int, default=12, help="Botocore retry max attempts. Default: 12")
     parser.add_argument(
         "--retry-mode",

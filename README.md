@@ -376,3 +376,45 @@ uv run identity-center-org-audit \
   --max-workers 2 \
   --max-attempts 15
 ```
+
+## 전체 실행 전 smoke test
+
+전체 100개 이상 계정을 다시 돌리기 전에 1개 계정만 별도 DB/output으로 테스트할 수 있습니다. 운영 DB를 더럽히지 않도록 `--db`와 `--output-dir`을 테스트용으로 분리하세요.
+
+계정 ID 하나만 테스트:
+
+```bash
+export KREW_API_KEY="발급받은 key"
+
+uv run identity-center-org-audit \
+  --profile audit \
+  --region ap-northeast-2 \
+  --db ./smoke_identity_center_audit.sqlite3 \
+  --output-dir ./smoke-output \
+  --account-id 123456789012 \
+  --max-workers 1
+```
+
+계정명 일부로 테스트:
+
+```bash
+uv run identity-center-org-audit \
+  --profile audit \
+  --region ap-northeast-2 \
+  --db ./smoke_identity_center_audit.sqlite3 \
+  --output-dir ./smoke-output \
+  --account-name-contains sec_engineering-dev \
+  --max-workers 1
+```
+
+앞에서 1개 계정만 빠르게 테스트:
+
+```bash
+uv run identity-center-org-audit \
+  --profile audit \
+  --region ap-northeast-2 \
+  --db ./smoke_identity_center_audit.sqlite3 \
+  --output-dir ./smoke-output \
+  --max-accounts 1 \
+  --max-workers 1
+```
