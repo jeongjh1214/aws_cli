@@ -136,13 +136,49 @@ class KrewOrgClient:
                 "error_message": f"{type(exc).__name__}: {exc}",
             }
 
-        main_position = payload.get("data", {}).get("mainPosition", {}) or {}
+        return parse_krew_org_payload(payload)
+
+
+def parse_krew_org_payload(payload: Any) -> dict[str, str]:
+    if payload is None:
         return {
-            "org_code": main_position.get("orgCode", "") or "",
-            "org_name": main_position.get("orgName", "") or "",
-            "status": "OK",
-            "error_message": "",
+            "org_code": "",
+            "org_name": "",
+            "status": "ERROR",
+            "error_message": "unexpected Krew response: null",
         }
+    if not isinstance(payload, dict):
+        return {
+            "org_code": "",
+            "org_name": "",
+            "status": "ERROR",
+            "error_message": f"unexpected Krew response type: {type(payload).__name__}",
+        }
+
+    data = payload.get("data") or {}
+    if not isinstance(data, dict):
+        return {
+            "org_code": "",
+            "org_name": "",
+            "status": "ERROR",
+            "error_message": f"unexpected Krew data type: {type(data).__name__}",
+        }
+
+    main_position = data.get("mainPosition") or {}
+    if not isinstance(main_position, dict):
+        return {
+            "org_code": "",
+            "org_name": "",
+            "status": "ERROR",
+            "error_message": f"unexpected Krew mainPosition type: {type(main_position).__name__}",
+        }
+
+    return {
+        "org_code": main_position.get("orgCode", "") or "",
+        "org_name": main_position.get("orgName", "") or "",
+        "status": "OK",
+        "error_message": "",
+    }
 
 
 def ensure_sqlite_schema(conn: sqlite3.Connection) -> None:

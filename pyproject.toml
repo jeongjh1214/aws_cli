@@ -1,6 +1,6 @@
 [project]
 name = "aws-cli-audit-tools"
-version = "0.1.0"
+version = "0.1.1"
 description = "AWS IAM Identity Center and IAM audit export utilities."
 readme = "README.md"
 requires-python = ">=3.10"

@@ -243,6 +243,13 @@ identity-center-org-audit \
   --output-dir ./output
 ```
 
+이미 설치한 서버에서 새 버전을 반영할 때:
+
+```bash
+git pull
+uv tool install --reinstall .
+```
+
 기존 exporter들도 console script로 노출됩니다.
 
 ```bash

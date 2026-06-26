@@ -9,6 +9,7 @@ from weekly_identity_center_org_audit import (
     build_assignment_key,
     detect_changes,
     enrich_assignments_with_krew,
+    parse_krew_org_payload,
 )
 
 
@@ -80,6 +81,17 @@ class WeeklyIdentityCenterOrgAuditTest(unittest.TestCase):
             self.assertEqual(enriched[0]["org_code"], "ORG-1")
             self.assertEqual(enriched[1]["org_name"], "Platform")
             self.assertEqual(enriched[2]["org_code"], "ORG-2")
+
+    def test_parse_krew_org_payload_handles_null_response_without_crashing(self):
+        self.assertEqual(
+            parse_krew_org_payload(None),
+            {
+                "org_code": "",
+                "org_name": "",
+                "status": "ERROR",
+                "error_message": "unexpected Krew response: null",
+            },
+        )
 
     def test_detect_changes_finds_added_removed_and_org_changed_rows(self):
         previous = [
