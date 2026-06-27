@@ -85,14 +85,14 @@ identitystore:ListGroupMemberships
 배치는 IAM Identity Center의 `effective_user_display_name`을 Krew API path parameter로 사용한다.
 
 ```text
-GET https://knock-api.kakaopay.com/papi/v1/krew/{displayName}
+GET ${KREW_API_BASE_URL}/{displayName}
 Header: X-API-Key: ...
 ```
 
 예:
 
 ```text
-GET /papi/v1/krew/billy.j
+GET /<path-to-user-org-api>/billy.j
 ```
 
 저장하는 응답 필드:

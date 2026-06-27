@@ -125,7 +125,7 @@ CSV는 Excel에서 한글/UTF-8이 깨지지 않도록 UTF-8 BOM으로 저장합
 
 `export_iam_users_from_profiles.py`는 `~/.aws/credentials`에 생성된 계정별 profile을 사용해서 각 AWS account의 IAM User 목록을 추출합니다.
 
-IAM Identity Center와 달리 IAM User는 각 계정 안의 IAM API를 조회해야 하므로, 사전에 각 계정으로 접근 가능한 profile이 필요합니다. 이 스크립트는 기본적으로 아래 marker 이후에 있는 profile 중 이름에 `kakaopay-aws`가 포함된 profile만 사용합니다.
+IAM Identity Center와 달리 IAM User는 각 계정 안의 IAM API를 조회해야 하므로, 사전에 각 계정으로 접근 가능한 profile이 필요합니다. 이 스크립트는 아래 marker 이후에 있는 profile 중 `--profile-prefix`에 지정한 문자열이 포함된 profile만 사용합니다.
 
 ```text
 # === Org Assume Role Profiles (generated 2026-04-01) ===
@@ -136,7 +136,7 @@ IAM Identity Center와 달리 IAM User는 각 계정 안의 IAM API를 조회해
 ```bash
 python3 export_iam_users_from_profiles.py \
   --credentials-file ~/.aws/credentials \
-  --profile-prefix kakaopay-aws \
+  --profile-prefix <company-profile-prefix> \
   --output-dir ./output
 ```
 
@@ -145,7 +145,7 @@ python3 export_iam_users_from_profiles.py \
 ```bash
 python3 export_iam_users_from_profiles.py \
   --credentials-file ~/.aws/credentials \
-  --profile-prefix kakaopay-aws \
+  --profile-prefix <company-profile-prefix> \
   --output-dir ./output \
   --max-workers 1 \
   --max-attempts 15
@@ -162,7 +162,7 @@ python3 export_iam_users_from_profiles.py \
 
 - `profile`: 사용한 AWS CLI profile 이름.
 - `account_id`: STS `GetCallerIdentity`로 확인한 AWS 계정 ID.
-- `account_name`: profile 이름에서 `kakaopay-aws` prefix를 제거해 추정한 이름.
+- `account_name`: profile 이름에서 `--profile-prefix` 값을 제거해 추정한 이름.
 - `iam_user_name`: IAM User 이름.
 - `console_access_enabled`: IAM User에 Login Profile이 있으면 `true`, 없으면 `false`.
 - `mfa_enabled`: MFA device가 1개 이상이면 `true`.
@@ -221,6 +221,7 @@ uv sync
 
 ```bash
 export KREW_API_KEY="발급받은 key"
+export KREW_API_BASE_URL="https://<internal-api-host>/<path-to-user-org-api>"
 
 uv run identity-center-org-audit \
   --profile audit \
@@ -235,6 +236,7 @@ uv run identity-center-org-audit \
 uv tool install .
 
 export KREW_API_KEY="발급받은 key"
+export KREW_API_BASE_URL="https://<internal-api-host>/<path-to-user-org-api>"
 
 identity-center-org-audit \
   --profile audit \
@@ -278,7 +280,7 @@ uv run identity-center-org-audit --help
 호출 형식:
 
 ```text
-GET https://knock-api.kakaopay.com/papi/v1/krew/{displayName}
+GET ${KREW_API_BASE_URL}/{displayName}
 Header: X-API-Key: ...
 ```
 
@@ -308,6 +310,7 @@ uv run identity-center-org-audit \
   --profile audit \
   --region ap-northeast-2 \
   --db ./identity_center_audit.sqlite3 \
+  --krew-api-base-url "$KREW_API_BASE_URL" \
   --refresh-krew-cache
 ```
 
@@ -363,7 +366,7 @@ new_org_code, old_org_name, new_org_name
 cron 예시:
 
 ```cron
-0 8 * * 1 cd /path/to/aws_cli && KREW_API_KEY=... uv run identity-center-org-audit --profile audit --region ap-northeast-2 --db ./identity_center_audit.sqlite3 --output-dir ./output >> ./output/weekly.log 2>&1
+0 8 * * 1 cd /path/to/aws_cli && KREW_API_KEY=... KREW_API_BASE_URL=https://<internal-api-host>/<path-to-user-org-api> uv run identity-center-org-audit --profile audit --region ap-northeast-2 --db ./identity_center_audit.sqlite3 --output-dir ./output >> ./output/weekly.log 2>&1
 ```
 
 API throttling이 있으면 worker 수를 낮춥니다.
@@ -385,6 +388,7 @@ uv run identity-center-org-audit \
 
 ```bash
 export KREW_API_KEY="발급받은 key"
+export KREW_API_BASE_URL="https://<internal-api-host>/<path-to-user-org-api>"
 
 uv run identity-center-org-audit \
   --profile audit \

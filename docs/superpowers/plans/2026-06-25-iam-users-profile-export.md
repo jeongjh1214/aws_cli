@@ -35,6 +35,6 @@
 **Files:**
 - Modify: `README.md`
 
-- [ ] Document how to run the IAM user exporter using generated `kakaopay-aws` profiles.
+- [ ] Document how to run the IAM user exporter using generated company AWS profiles.
 - [ ] Document required permissions and interpretation of `console_access_enabled`.
 - [ ] Run unit tests, py_compile, and CLI help verification before committing and pushing.

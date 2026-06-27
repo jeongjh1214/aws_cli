@@ -16,7 +16,7 @@ from typing import Any
 
 
 DEFAULT_MARKER = "# === Org Assume Role Profiles (generated 2026-04-01) ==="
-DEFAULT_PROFILE_PREFIX = "kakaopay-aws"
+DEFAULT_PROFILE_PREFIX = "aws"
 
 IAM_USER_FIELDS = [
     "profile",
@@ -282,7 +282,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--profile-prefix",
         default=DEFAULT_PROFILE_PREFIX,
-        help="Profile name substring to include. Default: kakaopay-aws",
+        help="Profile name substring to include. Default: aws",
     )
     parser.add_argument("--region", default="ap-northeast-2", help="Session region. Default: ap-northeast-2")
     parser.add_argument("--output-dir", default="output", help="Directory for exported files. Default: output")

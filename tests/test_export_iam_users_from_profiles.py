@@ -104,34 +104,34 @@ class IamUserExportTest(unittest.TestCase):
 [default]
 aws_access_key_id = before
 
-[kakaopay-aws-before-marker]
+[company-aws-before-marker]
 role_arn = arn:aws:iam::000000000000:role/AuditRole
 
 {MARKER}
-[kakaopay-aws-prod]
+[company-aws-prod]
 role_arn = arn:aws:iam::111111111111:role/AuditRole
 
 [unrelated]
 role_arn = arn:aws:iam::222222222222:role/AuditRole
 
-[profile kakaopay-aws-dev]
+[profile company-aws-dev]
 role_arn = arn:aws:iam::333333333333:role/AuditRole
 """
 
         self.assertEqual(
-            parse_profiles_from_credentials_text(text, MARKER, "kakaopay-aws"),
-            ["kakaopay-aws-prod", "kakaopay-aws-dev"],
+            parse_profiles_from_credentials_text(text, MARKER, "company-aws"),
+            ["company-aws-prod", "company-aws-dev"],
         )
 
     def test_guess_account_name_strips_prefix(self):
-        self.assertEqual(guess_account_name("kakaopay-aws-prod", "kakaopay-aws"), "prod")
-        self.assertEqual(guess_account_name("kakaopay-aws", "kakaopay-aws"), "kakaopay-aws")
+        self.assertEqual(guess_account_name("company-aws-prod", "company-aws"), "prod")
+        self.assertEqual(guess_account_name("company-aws", "company-aws"), "company-aws")
 
     def test_export_profile_users_shows_console_mfa_and_access_keys(self):
         exporter = IamUserExporter(iam=FakeIam())
 
         user_rows, access_key_rows = exporter.export_profile(
-            profile="kakaopay-aws-prod",
+            profile="company-aws-prod",
             account_id="111111111111",
             account_name="prod",
         )
@@ -140,7 +140,7 @@ role_arn = arn:aws:iam::333333333333:role/AuditRole
             user_rows,
             [
                 {
-                    "profile": "kakaopay-aws-prod",
+                    "profile": "company-aws-prod",
                     "account_id": "111111111111",
                     "account_name": "prod",
                     "iam_user_name": "alice",
@@ -156,7 +156,7 @@ role_arn = arn:aws:iam::333333333333:role/AuditRole
                     "active_access_key_count": 1,
                 },
                 {
-                    "profile": "kakaopay-aws-prod",
+                    "profile": "company-aws-prod",
                     "account_id": "111111111111",
                     "account_name": "prod",
                     "iam_user_name": "bob",

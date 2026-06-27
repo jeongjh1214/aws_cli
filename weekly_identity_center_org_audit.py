@@ -26,7 +26,7 @@ from export_identity_center_assignments import (
 )
 
 
-KREW_API_BASE_URL = "https://knock-api.kakaopay.com/papi/v1/krew"
+DEFAULT_KREW_API_BASE_URL = ""
 
 SNAPSHOT_FIELDS = [
     "account_id",
@@ -595,7 +595,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--output-dir", default="output", help="Directory for generated CSV/JSON files.")
     parser.add_argument("--output-prefix", default="weekly", help="Output filename prefix.")
     parser.add_argument("--krew-api-key-env", default="KREW_API_KEY", help="Env var containing Krew API key.")
-    parser.add_argument("--krew-api-base-url", default=KREW_API_BASE_URL, help="Krew API base URL.")
+    parser.add_argument(
+        "--krew-api-base-url",
+        default=os.environ.get("KREW_API_BASE_URL", DEFAULT_KREW_API_BASE_URL),
+        help="Krew API base URL. Can also be set with KREW_API_BASE_URL.",
+    )
     parser.add_argument("--krew-timeout-seconds", type=int, default=10, help="Krew API timeout. Default: 10")
     parser.add_argument("--krew-cache-ttl-days", type=int, default=6, help="Krew cache TTL. Default: 6")
     parser.add_argument("--refresh-krew-cache", action="store_true", help="Ignore Krew cache and refetch all users.")
@@ -641,6 +645,8 @@ def run_audit(args: argparse.Namespace) -> dict[str, Any]:
     api_key = os.environ.get(args.krew_api_key_env)
     if not api_key:
         raise SystemExit(f"{args.krew_api_key_env} 환경변수에 Krew API key를 설정하세요.")
+    if not args.krew_api_base_url:
+        raise SystemExit("KREW_API_BASE_URL 환경변수 또는 --krew-api-base-url 옵션을 설정하세요.")
 
     store = AssignmentSnapshotStore(Path(args.db))
     run_id = store.start_run(source="identity-center-live")

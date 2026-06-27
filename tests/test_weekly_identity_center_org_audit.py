@@ -96,9 +96,9 @@ class WeeklyIdentityCenterOrgAuditTest(unittest.TestCase):
 
     def test_filter_accounts_for_scan_supports_safe_small_test_runs(self):
         accounts = [
-            {"Id": "111111111111", "Name": "kakaopay-aws-sec-dev"},
-            {"Id": "222222222222", "Name": "kakaopay-aws-sec-prd"},
-            {"Id": "333333333333", "Name": "kakaopay-aws-platform-prd"},
+            {"Id": "111111111111", "Name": "company-aws-sec-dev"},
+            {"Id": "222222222222", "Name": "company-aws-sec-prd"},
+            {"Id": "333333333333", "Name": "company-aws-platform-prd"},
         ]
 
         filtered = filter_accounts_for_scan(
@@ -108,7 +108,7 @@ class WeeklyIdentityCenterOrgAuditTest(unittest.TestCase):
             max_accounts=1,
         )
 
-        self.assertEqual(filtered, [{"Id": "333333333333", "Name": "kakaopay-aws-platform-prd"}])
+        self.assertEqual(filtered, [{"Id": "333333333333", "Name": "company-aws-platform-prd"}])
 
     def test_detect_changes_finds_added_removed_and_org_changed_rows(self):
         previous = [
